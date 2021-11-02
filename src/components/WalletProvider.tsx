@@ -53,7 +53,7 @@ export default function WalletProvider(
       network.multisigProgramId,
       provider
     );
-
+    
     return {
       wallet,
       multisigClient,

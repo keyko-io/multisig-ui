@@ -52,7 +52,8 @@ import * as anchor from "@project-serum/anchor";
 import { useWallet } from "./WalletProvider";
 import { ViewTransactionOnExplorerButton } from "./Notification";
 import * as idl from "../utils/idl";
-import { networks } from "../store/reducer";
+import {networks, State as StoreState} from "../store/reducer";
+import {useSelector} from "react-redux";
 
 export default function Multisig({ multisig }: { multisig?: PublicKey }) {
   return (
@@ -104,6 +105,19 @@ export function MultisigInstance({ multisig }: { multisig: PublicKey }) {
     false
   );
   const [forceRefresh, setForceRefresh] = useState(false);
+  const { network } = useSelector((state: StoreState) => {
+    return {
+      network: state.common.network,
+    };
+  });
+  if (network !== null) {
+    multisig = network.multisigUpgradeAuthority ? network.multisigUpgradeAuthority : multisig;
+    const { hash } = window.location;
+    if (hash) {
+      window.location.href = `/#/${multisig!.toString()}`;
+    }
+  }
+
   useEffect(() => {
     multisigClient.account
       .multisig.fetch(multisig)

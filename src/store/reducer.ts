@@ -76,6 +76,7 @@ export const networks: Networks = {
       "DbnEfsCR6gSk2Doqr8chiS8Uus2sizUn4H8zg6iU7Lkr"
       // Other multisig accounts
       // "4D6S2eeRhSqQ846U8DP28PP2igzkcBRZuVCWMapq6Xmp"
+      // "6TmboLphZd8xHtQqsPf3oeNyqhtfXqhbW4Vapo3WMJQ5"
     ),
   },
   // Fill in with your local cluster addresses.

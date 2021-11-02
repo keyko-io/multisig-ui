@@ -1,5 +1,5 @@
 import React from "react";
-import { Provider } from "react-redux";
+import {Provider, useSelector} from "react-redux";
 import { useHistory, useLocation } from "react-router";
 import { HashRouter, Route } from "react-router-dom";
 import { SnackbarProvider } from "notistack";
@@ -11,7 +11,7 @@ import { store } from "./store";
 import WalletProvider from "./components/WalletProvider";
 import Layout from "./components/Layout";
 import Multisig from "./components/Multisig";
-import { networks } from "./store/reducer";
+import {networks, State as StoreState} from "./store/reducer";
 
 function App() {
   const theme = createMuiTheme({
@@ -50,10 +50,15 @@ function App() {
 
 function MultisigPage() {
   const { hash } = window.location;
+  const { network } = useSelector((state: StoreState) => {
+    return {
+      network: state.common.network,
+    };
+  });
   if (hash) {
-    window.location.href = `/#/${networks.mainnet.multisigUpgradeAuthority!.toString()}`;
+    window.location.href = `/#/${network.multisigUpgradeAuthority!.toString()}`;
   }
-  const multisig = networks.mainnet.multisigUpgradeAuthority;
+  const multisig = network.multisigUpgradeAuthority;
   return <Multisig multisig={multisig} />;
 }
 
