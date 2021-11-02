@@ -45,7 +45,7 @@ export default function WalletProvider(
       commitment: "recent",
     };
     const connection = new Connection(network.url, opts.preflightCommitment);
-    const wallet = new Wallet(walletProvider, network.url);
+    const wallet = "solana" in window ? (window as any).solana : new Wallet(walletProvider, network.url);
     const provider = new Provider(connection, wallet, opts);
 
     const multisigClient = new Program(

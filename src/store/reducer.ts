@@ -67,10 +67,15 @@ export const networks: Networks = {
   devnet: {
     // Cluster.
     label: "Devnet",
-    url: "https://devnet.solana.com",
+    url: "https://api.devnet.solana.com",
     explorerClusterSuffix: "devnet",
     multisigProgramId: new PublicKey(
-      "F3Uf5F61dmht1xuNNNkk3jnzj82TY56vVjVEhZALRkN"
+      "81u91ekry3qovR9Pn7tAYKBRRYffkgnK3hS4ygq3bbHo"
+    ),
+    multisigUpgradeAuthority: new PublicKey(
+      "DbnEfsCR6gSk2Doqr8chiS8Uus2sizUn4H8zg6iU7Lkr"
+      // Other multisig accounts
+      // "4D6S2eeRhSqQ846U8DP28PP2igzkcBRZuVCWMapq6Xmp"
     ),
   },
   // Fill in with your local cluster addresses.
