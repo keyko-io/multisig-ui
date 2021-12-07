@@ -110,7 +110,7 @@ export function MultisigInstance({ multisig }: { multisig: PublicKey }) {
       network: state.common.network,
     };
   });
-  if (network !== null) {
+  if (network !== null && multisig === null) {
     multisig = network.multisigUpgradeAuthority ? network.multisigUpgradeAuthority : multisig;
     const { hash } = window.location;
     if (hash) {
