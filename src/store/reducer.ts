@@ -73,7 +73,7 @@ export const networks: Networks = {
       "81u91ekry3qovR9Pn7tAYKBRRYffkgnK3hS4ygq3bbHo"
     ),
     multisigUpgradeAuthority: new PublicKey(
-      "DbnEfsCR6gSk2Doqr8chiS8Uus2sizUn4H8zg6iU7Lkr"
+      "D1gcX4mCZo5aB2WAKmyC4a5ZWyN8yB9GfuXBkH9K9P2z"
       // Other multisig accounts
       // "4D6S2eeRhSqQ846U8DP28PP2igzkcBRZuVCWMapq6Xmp"
       // "6TmboLphZd8xHtQqsPf3oeNyqhtfXqhbW4Vapo3WMJQ5"
