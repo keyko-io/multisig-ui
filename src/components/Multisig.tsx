@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useHistory } from "react-router";
 import { useSnackbar } from "notistack";
-import { encode as encodeBase64 } from "js-base64";
 import Container from "@material-ui/core/Container";
 import AppBar from "@material-ui/core/AppBar";
 import GavelIcon from "@material-ui/icons/Gavel";
@@ -48,12 +47,14 @@ import {
   SYSVAR_RENT_PUBKEY,
   SYSVAR_CLOCK_PUBKEY,
 } from "@solana/web3.js";
-import * as anchor from "@project-serum/anchor";
+import * as splToken from "@solana/spl-token";
 import { useWallet } from "./WalletProvider";
 import { ViewTransactionOnExplorerButton } from "./Notification";
 import * as idl from "../utils/idl";
-import {networks, State as StoreState} from "../store/reducer";
-import {useSelector} from "react-redux";
+import { networks, State as StoreState } from "../store/reducer";
+import { useSelector } from "react-redux";
+import * as BufferLayout from "buffer-layout";
+import { parseTxData, uint64 } from "../utils/types";
 
 export default function Multisig({ multisig }: { multisig?: PublicKey }) {
   return (
@@ -421,7 +422,7 @@ function TxListItem({
             textAlign: "left",
           }}
         >
-          {encodeBase64(txAccount.data)}
+          {parseTxData(tx)}
         </code>
       ),
     },
@@ -641,6 +642,27 @@ function ixLabel(tx: any, multisigClient: any) {
       );
     }
   }
+  if (tx.account.programId.equals(splToken.TOKEN_PROGRAM_ID)) {
+    const dataLayout = BufferLayout.struct([
+      BufferLayout.u8('instruction'),
+      uint64('amount'),
+    ]);
+    const data: any = dataLayout.decode(tx.account.data)
+    if (!data || !data.instruction) {
+      return <ListItemText primary={'Token transaction - unknown instruction: '.concat(tx.publicKey.toString())} />;
+    } else {
+      if (data.instruction === 3) {
+        return (
+          <ListItemText
+            primary={`Token transfer (${splToken.u64.fromBuffer(data.amount)})`}
+            secondary={tx.publicKey.toString()}
+          />
+        );
+      }
+      return <ListItemText primary={'Token transaction - unknown instruction: '.concat(tx.publicKey.toString())} />;
+    }
+  }
+
   if (idl.IDL_TAG.equals(tx.account.data.slice(0, 8))) {
     return (
       <ListItemText primary="Upgrade IDL" secondary={tx.publicKey.toString()} />

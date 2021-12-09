@@ -11,7 +11,7 @@ import { store } from "./store";
 import WalletProvider from "./components/WalletProvider";
 import Layout from "./components/Layout";
 import Multisig from "./components/Multisig";
-import {networks, State as StoreState} from "./store/reducer";
+import { State as StoreState} from "./store/reducer";
 
 function App() {
   const theme = createMuiTheme({
