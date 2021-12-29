@@ -44,11 +44,10 @@ import BN from "bn.js";
 import {
   Account,
   PublicKey,
+  AccountInfo,
   SYSVAR_RENT_PUBKEY,
   SYSVAR_CLOCK_PUBKEY, Keypair,
 } from "@solana/web3.js";
-import * as saber from '@saberhq/stableswap-sdk'
-import { Uint64Layout } from "@saberhq/token-utils";
 import { useWallet } from "./WalletProvider";
 import { ViewTransactionOnExplorerButton } from "./Notification";
 import * as idl from "../utils/idl";
@@ -58,8 +57,12 @@ import * as BufferLayout from "buffer-layout";
 import { parseTxData, uint64 } from "../utils/types";
 import * as SplToken from "@solana/spl-token";
 import {Program} from "@project-serum/anchor";
+import {AccountLayout, MintInfo} from "@solana/spl-token";
 
 const U64 = SplToken.u64
+export const SWAP_PROGRAM_ID = new PublicKey(
+  "SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ"
+);
 
 export default function Multisig({ multisig }: { multisig?: PublicKey }) {
   return (
@@ -617,32 +620,40 @@ function IxLabel({tx, multisigClient}: {tx: any, multisigClient: Program}) {
   const [tokenDecimals, setTokenDecimals] = useState(6);
   useEffect(() => {
     const dummySigner = Keypair.generate()
-    if (tx.account.programId.equals(saber.SWAP_PROGRAM_ID)) {
-      saber.StableSwap.load(
-        multisigClient.provider.connection, tx.account.accounts[0].pubkey, saber.SWAP_PROGRAM_ID)
-        .then((_stableSwap: saber.StableSwap) => {
-          const mintTokenA = new SplToken.Token(multisigClient.provider.connection, _stableSwap.state.tokenA.mint, SplToken.TOKEN_PROGRAM_ID, dummySigner)
-          const mintTokenB = new SplToken.Token(multisigClient.provider.connection, _stableSwap.state.tokenB.mint, SplToken.TOKEN_PROGRAM_ID, dummySigner)
-          const mintPoolToken = new SplToken.Token(multisigClient.provider.connection, _stableSwap.state.poolTokenMint, SplToken.TOKEN_PROGRAM_ID, dummySigner)
-          mintTokenA.getMintInfo().then((mintInfo: SplToken.MintInfo) => {
-            setDecimalsA(mintInfo.decimals)
-          })
-          mintTokenB.getMintInfo().then((mintInfo: SplToken.MintInfo) => {
-            setDecimalsB(mintInfo.decimals)
-          })
-          mintPoolToken.getMintInfo().then((mintInfo: SplToken.MintInfo) => {
-            setDecimalsPool(mintInfo.decimals)
-          })
-
-        });
-    }
+    const dummyMint = new PublicKey("EW1fpr5t8rge8wSaxFztPjmNMBeb4knaW6pcHtrQhZSt")
+    // if (tx.account.programId.equals(SWAP_PROGRAM_ID)) {
+    //   saber.StableSwap.load(
+    //     multisigClient.provider.connection, tx.account.accounts[0].pubkey, SWAP_PROGRAM_ID)
+    //     .then((_stableSwap: saber.StableSwap) => {
+    //       const mintTokenA = new SplToken.Token(multisigClient.provider.connection, _stableSwap.state.tokenA.mint, SplToken.TOKEN_PROGRAM_ID, dummySigner)
+    //       const mintTokenB = new SplToken.Token(multisigClient.provider.connection, _stableSwap.state.tokenB.mint, SplToken.TOKEN_PROGRAM_ID, dummySigner)
+    //       const mintPoolToken = new SplToken.Token(multisigClient.provider.connection, _stableSwap.state.poolTokenMint, SplToken.TOKEN_PROGRAM_ID, dummySigner)
+    //       mintTokenA.getMintInfo().then((mintInfo: SplToken.MintInfo) => {
+    //         setDecimalsA(mintInfo.decimals)
+    //       })
+    //       mintTokenB.getMintInfo().then((mintInfo: SplToken.MintInfo) => {
+    //         setDecimalsB(mintInfo.decimals)
+    //       })
+    //       mintPoolToken.getMintInfo().then((mintInfo: SplToken.MintInfo) => {
+    //         setDecimalsPool(mintInfo.decimals)
+    //       })
+    //
+    //     });
+    // }
     if (tx.account.programId.equals(SplToken.TOKEN_PROGRAM_ID)) {
-      const dtoken = new SplToken.Token(multisigClient.provider.connection, tx.account.accounts[1].pubkey, SplToken.TOKEN_PROGRAM_ID, dummySigner)
-      dtoken.getAccountInfo(tx.account.accounts[1].pubkey).then((accInfo) => {
-        return (new SplToken.Token(multisigClient.provider.connection, accInfo.mint, SplToken.TOKEN_PROGRAM_ID, dummySigner)).getMintInfo()
-      }).then((mintInfo) => {
-        setTokenDecimals(mintInfo.decimals)
+      const dtoken = new SplToken.Token(multisigClient.provider.connection, dummyMint, SplToken.TOKEN_PROGRAM_ID, dummySigner)
+      multisigClient.provider.connection.getAccountInfo(tx.account.accounts[1].pubkey, "recent").then((accInfo: AccountInfo<Buffer> | null) => {
+      // dtoken.getAccountInfo(tx.account.accounts[1].pubkey).then((accInfo: AccountInfo) => {
+        if (accInfo) {
+          const mint = new PublicKey(AccountLayout.decode(Buffer.from(accInfo.data)).mint);
+          console.log("mint: " + mint.toString())
+        }
+        // return (new SplToken.Token(multisigClient.provider.connection, accInfo.mint, SplToken.TOKEN_PROGRAM_ID, dummySigner)).getMintInfo()
       })
+      //   .then((mintInfo: MintInfo) => {
+      //   console.log("mintInfo: " + mintInfo.decimals)
+      //   setTokenDecimals(mintInfo.decimals)
+      // })
     }
   }, [multisigClient, tx]);
 
@@ -704,7 +715,7 @@ function IxLabel({tx, multisigClient}: {tx: any, multisigClient: Program}) {
       return <ListItemText primary={'Token transaction - unknown instruction: '.concat(tx.publicKey.toString())} />;
     }
   }
-  if (tx.account.programId.equals(saber.SWAP_PROGRAM_ID)) {
+  if (tx.account.programId.equals(SWAP_PROGRAM_ID)) {
     const dataLayout = BufferLayout.struct<{
       instruction: number;
       value1: Uint8Array;
@@ -712,16 +723,16 @@ function IxLabel({tx, multisigClient}: {tx: any, multisigClient: Program}) {
       value: Uint8Array;
     }>([
       BufferLayout.u8("instruction"),
-      Uint64Layout("value1"),
-      Uint64Layout("value2"),
-      Uint64Layout("value3"),
+      uint64("value1"),
+      uint64("value2"),
+      uint64("value3"),
     ]);
 
     const data: any = dataLayout.decode(tx.account.data)
     if (!data || !data.instruction) {
       return <ListItemText primary={'Saber swap transaction - unknown instruction: '.concat(tx.publicKey.toString())} />;
     } else {
-      if (data.instruction === saber.StableSwapInstruction.DEPOSIT) {
+      if (data.instruction === 2) { //saber.StableSwapInstruction.DEPOSIT) {
         const tokenAmountA = U64.fromBuffer(data.value1).toNumber() / (10 ** decimalsA)
         const tokenAmountB = U64.fromBuffer(data.value2).toNumber() / (10 ** decimalsB)
         const minimumPoolTokenAmount = U64.fromBuffer(data.value3).toNumber() / (10 ** decimalsPool)
@@ -732,7 +743,7 @@ function IxLabel({tx, multisigClient}: {tx: any, multisigClient: Program}) {
           />
         );
       }
-      if (data.instruction === saber.StableSwapInstruction.WITHDRAW) {
+      if (data.instruction === 3) { //saber.StableSwapInstruction.WITHDRAW) {
         const poolTokenAmount = U64.fromBuffer(data.value1).toNumber() / (10 ** decimalsA)
         const minimumTokenA = U64.fromBuffer(data.value2).toNumber() / (10 ** decimalsB)
         const minimumTokenB = U64.fromBuffer(data.value3).toNumber() / (10 ** decimalsPool)
