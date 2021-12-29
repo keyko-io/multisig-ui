@@ -248,7 +248,7 @@ function UserSelector() {
       renderValue={() => {
         return (
           <Typography style={{ overflow: "hidden" }}>
-            {wallet.publicKey.toString()}
+            {wallet.publicKey !== null ? wallet.publicKey.toString(): '---'}
           </Typography>
         );
       }}
