@@ -44,7 +44,6 @@ import BN from "bn.js";
 import {
   Account,
   PublicKey,
-  AccountInfo,
   SYSVAR_RENT_PUBKEY,
   SYSVAR_CLOCK_PUBKEY, Keypair,
 } from "@solana/web3.js";
@@ -53,13 +52,10 @@ import { ViewTransactionOnExplorerButton } from "./Notification";
 import * as idl from "../utils/idl";
 import { networks, State as StoreState } from "../store/reducer";
 import { useSelector } from "react-redux";
-import * as BufferLayout from "buffer-layout";
-import { parseTxData, uint64 } from "../utils/types";
+import {DataItem, formatInstructionData, getMintInfo, parseTxData} from "../utils/types";
 import * as SplToken from "@solana/spl-token";
 import {Program} from "@project-serum/anchor";
-import {AccountLayout, MintInfo} from "@solana/spl-token";
 
-const U64 = SplToken.u64
 export const SWAP_PROGRAM_ID = new PublicKey(
   "SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ"
 );
@@ -430,7 +426,7 @@ function TxListItem({
             textAlign: "left",
           }}
         >
-          {parseTxData(tx)}
+          {formatInstructionData(parseTxData(tx))}
         </code>
       ),
     },
@@ -613,47 +609,51 @@ function TxListItem({
 }
 
 function IxLabel({tx, multisigClient}: {tx: any, multisigClient: Program}) {
-  // const [stableSwap, setStableSwap] = useState<saber.StableSwap|null>(null);
   const [decimalsA, setDecimalsA] = useState(6);
   const [decimalsB, setDecimalsB] = useState(6);
   const [decimalsPool, setDecimalsPool] = useState(6);
   const [tokenDecimals, setTokenDecimals] = useState(6);
   useEffect(() => {
     const dummySigner = Keypair.generate()
-    const dummyMint = new PublicKey("EW1fpr5t8rge8wSaxFztPjmNMBeb4knaW6pcHtrQhZSt")
-    // if (tx.account.programId.equals(SWAP_PROGRAM_ID)) {
-    //   saber.StableSwap.load(
-    //     multisigClient.provider.connection, tx.account.accounts[0].pubkey, SWAP_PROGRAM_ID)
-    //     .then((_stableSwap: saber.StableSwap) => {
-    //       const mintTokenA = new SplToken.Token(multisigClient.provider.connection, _stableSwap.state.tokenA.mint, SplToken.TOKEN_PROGRAM_ID, dummySigner)
-    //       const mintTokenB = new SplToken.Token(multisigClient.provider.connection, _stableSwap.state.tokenB.mint, SplToken.TOKEN_PROGRAM_ID, dummySigner)
-    //       const mintPoolToken = new SplToken.Token(multisigClient.provider.connection, _stableSwap.state.poolTokenMint, SplToken.TOKEN_PROGRAM_ID, dummySigner)
-    //       mintTokenA.getMintInfo().then((mintInfo: SplToken.MintInfo) => {
-    //         setDecimalsA(mintInfo.decimals)
-    //       })
-    //       mintTokenB.getMintInfo().then((mintInfo: SplToken.MintInfo) => {
-    //         setDecimalsB(mintInfo.decimals)
-    //       })
-    //       mintPoolToken.getMintInfo().then((mintInfo: SplToken.MintInfo) => {
-    //         setDecimalsPool(mintInfo.decimals)
-    //       })
-    //
-    //     });
-    // }
+    if (tx.account.programId.equals(SWAP_PROGRAM_ID)) {
+      const instInfo = parseTxData(tx)
+      let a = -1, b = -1, p = -1
+      if (instInfo.code === 2) {
+        a = 3
+        b = 4
+        p = 8
+      } else if (instInfo.code === 3) {
+        a = 7
+        b = 8
+        p = 4
+      }
+
+      if (instInfo.code === 2 || instInfo.code === 3) {
+        getMintInfo(multisigClient.provider.connection, tx.account.accounts[a].pubkey, dummySigner).then((mintInfo: any) => {
+          if (mintInfo) {
+            setDecimalsA(mintInfo.decimals)
+          }
+        })
+        getMintInfo(multisigClient.provider.connection, tx.account.accounts[b].pubkey, dummySigner).then((mintInfo: any) => {
+          if (mintInfo) {
+            setDecimalsB(mintInfo.decimals)
+          }
+        })
+        getMintInfo(multisigClient.provider.connection, tx.account.accounts[p].pubkey, dummySigner).then((mintInfo: any) => {
+          if (mintInfo) {
+            setDecimalsPool(mintInfo.decimals)
+          }
+        })
+      }
+
+    }
     if (tx.account.programId.equals(SplToken.TOKEN_PROGRAM_ID)) {
-      const dtoken = new SplToken.Token(multisigClient.provider.connection, dummyMint, SplToken.TOKEN_PROGRAM_ID, dummySigner)
-      multisigClient.provider.connection.getAccountInfo(tx.account.accounts[1].pubkey, "recent").then((accInfo: AccountInfo<Buffer> | null) => {
-      // dtoken.getAccountInfo(tx.account.accounts[1].pubkey).then((accInfo: AccountInfo) => {
-        if (accInfo) {
-          const mint = new PublicKey(AccountLayout.decode(Buffer.from(accInfo.data)).mint);
-          console.log("mint: " + mint.toString())
+      getMintInfo(multisigClient.provider.connection, tx.account.accounts[1].pubkey, dummySigner).then((mintInfo: any) => {
+        if (mintInfo) {
+          console.log("mintInfo: " + mintInfo.decimals)
+          setTokenDecimals(mintInfo.decimals)
         }
-        // return (new SplToken.Token(multisigClient.provider.connection, accInfo.mint, SplToken.TOKEN_PROGRAM_ID, dummySigner)).getMintInfo()
       })
-      //   .then((mintInfo: MintInfo) => {
-      //   console.log("mintInfo: " + mintInfo.decimals)
-      //   setTokenDecimals(mintInfo.decimals)
-      // })
     }
   }, [multisigClient, tx]);
 
@@ -662,13 +662,11 @@ function IxLabel({tx, multisigClient}: {tx: any, multisigClient: Program}) {
     if (tx.account.data.equals(Buffer.from([3, 0, 0, 0]))) {
       return (
         <ListItemText
-          primary="Program upgrade"
           secondary={tx.publicKey.toString()}
         />
       );
     }
-  }
-  if (tx.account.programId.equals(multisigClient.programId)) {
+  } else if (tx.account.programId.equals(multisigClient.programId)) {
     const setThresholdSighash = multisigClient.coder.sighash(
       "global",
       "change_threshold"
@@ -693,78 +691,26 @@ function IxLabel({tx, multisigClient}: {tx: any, multisigClient: Program}) {
         />
       );
     }
-  }
-  if (tx.account.programId.equals(SplToken.TOKEN_PROGRAM_ID)) {
-    const dataLayout = BufferLayout.struct([
-      BufferLayout.u8('instruction'),
-      uint64('amount'),
-    ]);
-    const data: any = dataLayout.decode(tx.account.data)
-    if (!data || !data.instruction) {
-      return <ListItemText primary={'Token transaction - unknown instruction: '.concat(tx.publicKey.toString())} />;
-    } else {
-      if (data.instruction === 3) {
-        const amount = U64.fromBuffer(data.amount).toNumber() / (10 ** tokenDecimals)
-        return (
-          <ListItemText
-            primary={`Token transfer (${amount})`}
-            secondary={tx.publicKey.toString()}
-          />
-        );
-      }
-      return <ListItemText primary={'Token transaction - unknown instruction: '.concat(tx.publicKey.toString())} />;
-    }
-  }
-  if (tx.account.programId.equals(SWAP_PROGRAM_ID)) {
-    const dataLayout = BufferLayout.struct<{
-      instruction: number;
-      value1: Uint8Array;
-      value2: Uint8Array;
-      value: Uint8Array;
-    }>([
-      BufferLayout.u8("instruction"),
-      uint64("value1"),
-      uint64("value2"),
-      uint64("value3"),
-    ]);
+  } else if (
+      tx.account.programId.equals(SplToken.TOKEN_PROGRAM_ID) ||
+      tx.account.programId.equals(SWAP_PROGRAM_ID)
+    ) {
+    const instInfo = parseTxData(tx, [tokenDecimals, decimalsA, decimalsB, decimalsPool])
+    let argValues = instInfo.dataItems.map((ditem: DataItem) => `${ditem.value}`)
 
-    const data: any = dataLayout.decode(tx.account.data)
-    if (!data || !data.instruction) {
-      return <ListItemText primary={'Saber swap transaction - unknown instruction: '.concat(tx.publicKey.toString())} />;
-    } else {
-      if (data.instruction === 2) { //saber.StableSwapInstruction.DEPOSIT) {
-        const tokenAmountA = U64.fromBuffer(data.value1).toNumber() / (10 ** decimalsA)
-        const tokenAmountB = U64.fromBuffer(data.value2).toNumber() / (10 ** decimalsB)
-        const minimumPoolTokenAmount = U64.fromBuffer(data.value3).toNumber() / (10 ** decimalsPool)
-        return (
-          <ListItemText
-            primary={`Saber swap deposit (tokA=${tokenAmountA}, tokB=${tokenAmountB}, minPoolTok=${minimumPoolTokenAmount})`}
-            secondary={tx.publicKey.toString()}
-          />
-        );
-      }
-      if (data.instruction === 3) { //saber.StableSwapInstruction.WITHDRAW) {
-        const poolTokenAmount = U64.fromBuffer(data.value1).toNumber() / (10 ** decimalsA)
-        const minimumTokenA = U64.fromBuffer(data.value2).toNumber() / (10 ** decimalsB)
-        const minimumTokenB = U64.fromBuffer(data.value3).toNumber() / (10 ** decimalsPool)
-        return (
-          <ListItemText
-            primary={`Saber swap withdraw (poolTok=${poolTokenAmount}, minTokA=${minimumTokenA}, minTokB=${minimumTokenB})`}
-            secondary={tx.publicKey.toString()}
-          />
-        );
-      }
-      return <ListItemText primary={'Saber swap transaction - unknown instruction: '.concat(tx.publicKey.toString())} />;
-    }
-
-  }
-
-  if (idl.IDL_TAG.equals(tx.account.data.slice(0, 8))) {
+    return (
+      <ListItemText
+        primary={`${instInfo.type} -- ${instInfo.name} (${argValues.join(', ')})`}
+        secondary={`multisigTransaction=${tx.publicKey.toString()}\n ${instInfo.otherInfo}`}
+      />
+    );
+  } else if (idl.IDL_TAG.equals(tx.account.data.slice(0, 8))) {
     return (
       <ListItemText primary="Upgrade IDL" secondary={tx.publicKey.toString()} />
     );
+  } else {
+    return <ListItemText primary={tx.publicKey.toString()}/>;
   }
-  return <ListItemText primary={tx.publicKey.toString()} />;
 }
 
 function AccountsList({ accounts }: { accounts: any }) {
@@ -1505,5 +1451,3 @@ async function idlAddress(programId: PublicKey): Promise<PublicKey> {
 function seed(): string {
   return "anchor:idl";
 }
-
-// The 
